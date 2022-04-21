@@ -49,37 +49,90 @@ def index(): # cards view
     q = args.get('q')
     # TODO: add error handing in case open() could not open file
     (recipes_header_str, recipes_footer_str) = recipes_header_footer(q)
+
+    # TODO: add sanity check if not too many ingredients are searched
+    #       to protect against DOS attacks on database
+    ingredients=str(q).lower().replace('"','').split(',')
+    ingredients=[i.strip() for i in ingredients]
+    # question marks for SQL injection resilient parameter substitution
+    question_marks_str = ('?,'*len(ingredients))[:-1]
+
+    connection = sqlite3.connect('recipes.sqlite3')
+    sql_cursor = connection.cursor()
+    # find recipes
+    sql_cursor.execute('''SELECT recipes.r_id AS r_id, r_name, COUNT(*) as matched_ingredients FROM
+recipes LEFT JOIN recipes_ingredients
+ON recipes.r_id=recipes_ingredients.r_id
+LEFT JOIN ingredients
+ON recipes_ingredients.i_id=ingredients.i_id
+WHERE i_name IN ({question_marks})
+GROUP BY recipes.r_id, recipes.r_name
+ORDER BY matched_ingredients DESC
+LIMIT 100
+'''.format(question_marks = question_marks_str), ingredients );
+    # TODO: consider if 100 is a good limit of matches for security
+
     recipes_cards_str = ''
-    for i in range(1,17):
-        recipe_name_str = str(i)
-        recipe_id_str = str(i)
+    for row in sql_cursor:
+        recipe_id_str = str(row[0])
+        recipe_name_str = str(row[1])
+        recipe_matched_ingredients_no = int(row[2])
         # let's construct new card
         c = '''
         <div class="card" style="margin-right: 1rem;">
             <div class="card-body">
                 <h5 class="card-title">Recipe {recipe_name}</h5>
-                <p class="card-text">beginning of instructions</p>
+                <p class="card-text">Matched {recipe_matched_no} ingredients</p>
                 <a class="btn btn-info btn-lg" href="/recipe/{recipe_id}">Let's cook</a>
             </div>
         </div>
-        '''.format(recipe_name = recipe_name_str, recipe_id = recipe_id_str)
+        '''.format(recipe_name = recipe_name_str,
+                   recipe_id = recipe_id_str,
+                   recipe_matched_no = recipe_matched_ingredients_no)
         recipes_cards_str += c
+    connection.close()
     return recipes_header_str + recipes_cards_str + recipes_footer_str
 
 @app.route('/recipe/<recipeid>')
 def recipe(recipeid):
     (recipes_header_str, recipes_footer_str) = recipes_header_footer()
     # TODO: add check if recipeid is string containing number, as it may be used to inject malicious data
-    recipe_str = '''
-    <div class="card" style="margin-right: 1rem;">
-      <div class="card-body">
-        <h5 class="card-title">Recipe {recipeid}</h5>
-        <p class="card-text">beginning of instructions</p>
-      </div>
-    </div>
-    '''.format(recipeid=recipeid)
-    #recipe_str = '<h4>Recipe no.' + str(recipeid) + '</h4>'
-    #recipe_str += '<p>Recipe text...</p>'
+    
+    recipe_str = '<div class="card" style="margin-right: 1rem;"><div class="card-body">'
+
+    connection = sqlite3.connect('recipes.sqlite3')
+    recipe_cursor = connection.cursor()
+    recipe_cursor.execute('''SELECT r_name, r_instructions, r_type, r_duration FROM 
+recipes WHERE r_id = {r_id}'''.format(r_id=recipeid));
+    recipe_row = next(recipe_cursor)
+    recipe_str += '''
+    <h5 class="card-title">Recipe {r_name}</h5>
+    <p class="card-text">Duration: {r_duration}min</p>
+    <p class="card-text">type: {r_type}</p>
+    <p class="card-text">Instructions: {r_instructions}</p>
+    '''.format(
+        r_name = recipe_row[0],
+        r_instructions = recipe_row[1],
+        r_type = recipe_row[2],
+        r_duration = recipe_row[3]);
+
+    ingredients_cursor = connection.cursor()
+    ingredients_cursor.execute('''SELECT i_amount, i_amount_unit, i_name FROM
+recipes_ingredients LEFT JOIN ingredients
+ON recipes_ingredients.i_id=ingredients.i_id
+WHERE recipes_ingredients.r_id = {r_id}
+'''.format(r_id = recipeid));
+    recipe_str += '<ul>'
+    for row in ingredients_cursor:
+        # TODO: converting units with SI prefixes, e.g. 1000g => 1kg or 0.12 L => 120 mL
+        recipe_str += '<li>{amount} {unit} of {item}</li>'.format(
+                amount=row[0]/1000,
+                unit=row[1],
+                item=row[2])
+    recipe_str += '</ul>'
+    connection.close()
+
+    recipe_str += '</div></div>'
     return recipes_header_str + recipe_str + recipes_footer_str
 
 @app.route('/about')
