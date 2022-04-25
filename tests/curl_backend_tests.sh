@@ -11,3 +11,6 @@ echo 'Test: If chocolade recipie no 3 , has cacao and milk'
 curl --silent 'http://localhost:8040/recipe/3'|grep 'milk' && echo 'OK' || echo 'FAILURE'
 curl --silent 'http://localhost:8040/recipe/3'|grep 'salt' && echo 'OK' || echo 'FAILURE'
 
+echo 'Test: REST api request'
+response="$(curl --silent 'http://localhost:8040/ingredients/1')"
+[ "$response" == '["chicken breast", "frozen thai veggies", "coconut milk", "curry paste", "sesame oil", "basmati rice"]' ] && echo 'OK' || echo 'FAILURE'

@@ -1,6 +1,6 @@
 from flask import Flask, request, send_from_directory
-#import pandas as pd
 import sqlite3
+import json
 
 app = Flask(__name__)
 
@@ -169,5 +169,18 @@ def contact():
     #recipe_str = '<h4>Recipe no.' + str(recipeid) + '</h4>'
     #recipe_str += '<p>Recipe text...</p>'
     return recipes_header_str + content_str + recipes_footer_str
+
+@app.route('/ingredients/<recipe_id>')
+def ingredient(recipe_id):
+    connection = sqlite3.connect('recipes.sqlite3')
+    cursor = connection.cursor()
+    cursor.execute('''SELECT i_name FROM
+            recipes_ingredients JOIN ingredients
+            ON  recipes_ingredients.i_id = ingredients.i_id
+            WHERE r_id = ?''', recipe_id)
+    ingredients = list()
+    for row in cursor:
+        ingredients.append(str(row[0]))
+    return json.dumps(ingredients)
 
 app.run(host='0.0.0.0', port=8040)
