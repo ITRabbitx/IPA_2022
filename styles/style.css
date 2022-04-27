@@ -57,3 +57,16 @@
 .card {
 min-width: 20em;
 }
+
+body{
+  background-position: center;
+  background-repeat: repeat;
+  background-size: cover;
+  background-color: rgba(173, 234, 238, 0.2);
+  background-blend-mode:darken;
+}
+
+.btn-search, .btn-search:hover, .btn-search:active, .btn-search:visited {
+    background-color: #17a2b8 !important;
+    color: white;
+}

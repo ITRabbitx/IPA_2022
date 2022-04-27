@@ -50,16 +50,25 @@ def index(): # cards view
     # TODO: add error handing in case open() could not open file
     (recipes_header_str, recipes_footer_str) = recipes_header_footer(q)
 
+    connection = sqlite3.connect('recipes.sqlite3')
+
+    # find ingrediens for autocomplete script
+    # generate list of ingredients for script, and substitute default one with one extended with ingredients from database
+    possible_ingredients={'"cacao"','"water"','"milk"'}
+    sql_cursor = connection.cursor()
+    sql_cursor.execute('SELECT i_name FROM ingredients');
+    for row in sql_cursor:
+        possible_ingredients.add('"' + str(row[0]) + '"')
+    recipes_header_str = recipes_header_str.replace('"cacao","water","milk",', ','.join(possible_ingredients))
+
     # TODO: add sanity check if not too many ingredients are searched
     #       to protect against DOS attacks on database
     ingredients=str(q).lower().replace('"','').split(',')
     ingredients=[i.strip() for i in ingredients]
     # question marks for SQL injection resilient parameter substitution
     question_marks_str = ('?,'*len(ingredients))[:-1]
-
-    connection = sqlite3.connect('recipes.sqlite3')
-    sql_cursor = connection.cursor()
     # find recipes
+    sql_cursor = connection.cursor()
     sql_cursor.execute('''SELECT recipes.r_id AS r_id, r_name, COUNT(*) as matched_ingredients FROM
 recipes LEFT JOIN recipes_ingredients
 ON recipes.r_id=recipes_ingredients.r_id
