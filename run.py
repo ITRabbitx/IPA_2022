@@ -15,13 +15,16 @@ app = Flask(__name__)
 # and secure.
 
 @app.route('/logo.svg')
-def static_logo_svg(): #THIS ONE DOES NOT WORK FOR SOME REASON!
+def static_logo_svg():
     return send_from_directory('.', 'logo.svg')
 
 @app.route('/styles/style.css')
-def static_style_css(): #THIS ONE DOES NOT WORK FOR SOME REASON!
+def static_style_css():
     return send_from_directory('styles', 'style.css')
-    #return app.send_static_file('styles/style.css')
+   
+@app.route('/background.png')
+def static_background_png():
+    return send_from_directory('static', 'static/background.png')
 
 def recipes_header_footer(search_text=''):
     # TODO: add error handing in case open() could not open file
